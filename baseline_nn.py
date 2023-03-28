@@ -1,5 +1,6 @@
 try:
     import waitGPU
+
     waitGPU.wait(utilization=50, memory_ratio=0.5, available_memory=5000, interval=9, nproc=1, ngpu=1)
 except ImportError:
     pass
@@ -7,6 +8,7 @@ except ImportError:
 import torch
 import torch.nn as nn
 import torch.optim as optim
+
 torch.set_default_dtype(torch.float64)
 
 import operator
@@ -25,55 +27,56 @@ import default_args
 
 DEVICE = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
+
 def main():
     parser = argparse.ArgumentParser(description='baseline_nn')
     parser.add_argument('--probType', type=str, default='acopf57',
-        choices=['simple', 'nonconvex', 'acopf57'], help='problem type')
-    parser.add_argument('--simpleVar', type=int, 
-        help='number of decision vars for simple problem')
+                        choices=['simple', 'nonconvex', 'acopf57'], help='problem type')
+    parser.add_argument('--simpleVar', type=int,
+                        help='number of decision vars for simple problem')
     parser.add_argument('--simpleIneq', type=int,
-        help='number of inequality constraints for simple problem')
+                        help='number of inequality constraints for simple problem')
     parser.add_argument('--simpleEq', type=int,
-        help='number of equality constraints for simple problem')
+                        help='number of equality constraints for simple problem')
     parser.add_argument('--simpleEx', type=int,
-        help='total number of datapoints for simple problem')
+                        help='total number of datapoints for simple problem')
     parser.add_argument('--nonconvexVar', type=int,
-        help='number of decision vars for nonconvex problem')
+                        help='number of decision vars for nonconvex problem')
     parser.add_argument('--nonconvexIneq', type=int,
-        help='number of inequality constraints for nonconvex problem')
+                        help='number of inequality constraints for nonconvex problem')
     parser.add_argument('--nonconvexEq', type=int,
-        help='number of equality constraints for nonconvex problem')
+                        help='number of equality constraints for nonconvex problem')
     parser.add_argument('--nonconvexEx', type=int,
-        help='total number of datapoints for nonconvex problem')
+                        help='total number of datapoints for nonconvex problem')
     parser.add_argument('--epochs', type=int,
-        help='number of neural network epochs')
+                        help='number of neural network epochs')
     parser.add_argument('--batchSize', type=int,
-        help='training batch size')
+                        help='training batch size')
     parser.add_argument('--lr', type=float,
-        help='neural network learning rate')
+                        help='neural network learning rate')
     parser.add_argument('--hiddenSize', type=int,
-        help='hidden layer size for neural network')
+                        help='hidden layer size for neural network')
     parser.add_argument('--softWeight', type=float,
-        help='total weight given to constraint violations in loss')
+                        help='total weight given to constraint violations in loss')
     parser.add_argument('--softWeightEqFrac', type=float,
-        help='fraction of weight given to equality constraints (vs. inequality constraints) in loss')
+                        help='fraction of weight given to equality constraints (vs. inequality constraints) in loss')
     parser.add_argument('--useTestCorr', type=str_to_bool,
-        help='whether to use correction during testing')
+                        help='whether to use correction during testing')
     parser.add_argument('--corrTestMaxSteps', type=int,
-        help='max number of correction steps during testing')
+                        help='max number of correction steps during testing')
     parser.add_argument('--corrEps', type=float,
-        help='correction procedure tolerance')
+                        help='correction procedure tolerance')
     parser.add_argument('--corrLr', type=float,
-        help='learning rate for correction procedure')
+                        help='learning rate for correction procedure')
     parser.add_argument('--corrMomentum', type=float,
-        help='momentum for correction procedure')
+                        help='momentum for correction procedure')
     parser.add_argument('--saveAllStats', type=str_to_bool,
-        help='whether to save all stats, or just those from latest epoch')
+                        help='whether to save all stats, or just those from latest epoch')
     parser.add_argument('--resultsSaveFreq', type=int,
-        help='how frequently (in terms of number of epochs) to save stats to file')
+                        help='how frequently (in terms of number of epochs) to save stats to file')
 
     args = parser.parse_args()
-    args = vars(args) # change to dictionary
+    args = vars(args)  # change to dictionary
     defaults = default_args.baseline_nn_default_args(args['probType'])
     for key in defaults.keys():
         if args[key] is None:
@@ -108,7 +111,7 @@ def main():
     data._device = DEVICE
 
     save_dir = os.path.join('results', str(data), 'baselineNN',
-        my_hash(str(sorted(list(args.items())))), str(time.time()).replace('.', '-'))
+                            my_hash(str(sorted(list(args.items())))), str(time.time()).replace('.', '-'))
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
     with open(os.path.join(save_dir, 'args.dict'), 'wb') as f:
@@ -165,14 +168,14 @@ def train_net(data, args, save_dir):
             dict_agg(epoch_stats, 'train_loss', train_loss.detach().cpu().numpy())
             dict_agg(epoch_stats, 'train_time', train_time, op='sum')
 
-
         # Print results
         print(
             'Epoch {}: train loss {:.4f}, eval {:.4f}, dist {:.4f}, ineq max {:.4f}, ineq mean {:.4f}, ineq num viol {:.4f}, eq max {:.4f}, steps {}, time {:.4f}'.format(
                 i, np.mean(epoch_stats['train_loss']), np.mean(epoch_stats['valid_eval']),
                 np.mean(epoch_stats['valid_dist']), np.mean(epoch_stats['valid_ineq_max']),
                 np.mean(epoch_stats['valid_ineq_mean']), np.mean(epoch_stats['valid_ineq_num_viol_0']),
-                np.mean(epoch_stats['valid_eq_max']), np.mean(epoch_stats['valid_steps']), np.mean(epoch_stats['valid_time'])))
+                np.mean(epoch_stats['valid_eq_max']), np.mean(epoch_stats['valid_steps']),
+                np.mean(epoch_stats['valid_time'])))
 
         if args['saveAllStats']:
             if i == 0:
@@ -197,6 +200,7 @@ def train_net(data, args, save_dir):
 
     return solver_net, stats
 
+
 # Modifies stats in place
 def dict_agg(stats, key, value, op='concat'):
     if key in stats.keys():
@@ -209,9 +213,9 @@ def dict_agg(stats, key, value, op='concat'):
     else:
         stats[key] = value
 
+
 # Modifies stats in place
 def eval_net(data, X, solver_net, args, prefix, stats):
-
     eps_converge = args['corrEps']
     make_prefix = lambda x: "{}_{}".format(prefix, x)
     start_time = time.time()
@@ -235,7 +239,8 @@ def eval_net(data, X, solver_net, args, prefix, stats):
              torch.sum(data.ineq_dist(X, Ycorr) > 100 * eps_converge, dim=1).detach().cpu().numpy())
     dict_agg(stats, make_prefix('eq_max'),
              torch.max(torch.abs(data.eq_resid(X, Ycorr)), dim=1)[0].detach().cpu().numpy())
-    dict_agg(stats, make_prefix('eq_mean'), torch.mean(torch.abs(data.eq_resid(X, Ycorr)), dim=1).detach().cpu().numpy())
+    dict_agg(stats, make_prefix('eq_mean'),
+             torch.mean(torch.abs(data.eq_resid(X, Ycorr)), dim=1).detach().cpu().numpy())
     dict_agg(stats, make_prefix('eq_num_viol_0'),
              torch.sum(torch.abs(data.eq_resid(X, Ycorr)) > eps_converge, dim=1).detach().cpu().numpy())
     dict_agg(stats, make_prefix('eq_num_viol_1'),
@@ -265,12 +270,14 @@ def eval_net(data, X, solver_net, args, prefix, stats):
 
     return stats
 
+
 def softloss(data, X, Y, args):
     obj_cost = data.obj_fn(Y)
     ineq_cost = torch.norm(data.ineq_dist(X, Y), dim=1)
     eq_cost = torch.norm(data.eq_resid(X, Y), dim=1)
     return obj_cost + args['softWeight'] * (1 - args['softWeightEqFrac']) * ineq_cost + \
            args['softWeight'] * args['softWeightEqFrac'] * eq_cost
+
 
 # Used only at test time, so let PyTorch avoid building the computational graph
 def grad_steps_all(data, X, Y, args):
@@ -286,7 +293,7 @@ def grad_steps_all(data, X, Y, args):
         old_step = 0
         with torch.no_grad():
             while (i == 0 or torch.max(torch.abs(data.eq_resid(X, Y_new))) > eps_converge or
-                           torch.max(data.ineq_dist(X, Y_new)) > eps_converge) and i < max_steps:
+                   torch.max(data.ineq_dist(X, Y_new)) > eps_converge) and i < max_steps:
                 with torch.no_grad():
                     ineq_step = data.ineq_grad(X, Y_new)
                     eq_step = data.eq_grad(X, Y_new)
@@ -308,16 +315,16 @@ class NNSolver(nn.Module):
         self._data = data
         self._args = args
         layer_sizes = [data.xdim, self._args['hiddenSize'], self._args['hiddenSize']]
-        layers = reduce(operator.add, 
-            [[nn.Linear(a,b), nn.BatchNorm1d(b), nn.ReLU(), nn.Dropout(p=0.2)] 
-                for a,b in zip(layer_sizes[0:-1], layer_sizes[1:])])
+        layers = reduce(operator.add,
+                        [[nn.Linear(a, b), nn.BatchNorm1d(b), nn.ReLU(), nn.Dropout(p=0.2)]
+                         for a, b in zip(layer_sizes[0:-1], layer_sizes[1:])])
         layers += [nn.Linear(layer_sizes[-1], data.ydim)]
         for layer in layers:
             if type(layer) == nn.Linear:
                 nn.init.kaiming_normal_(layer.weight)
 
         self.net = nn.Sequential(*layers)
-        
+
     def forward(self, x):
         prob_type = self._args['probType']
         if prob_type == 'simple':
@@ -328,13 +335,13 @@ class NNSolver(nn.Module):
             out = self.net(x)
             data = self._data
             out2 = nn.Sigmoid()(out[:, :-data.nbus])
-            pg = out2[:, :data.ng] * data.pmax + (1-out2[:, :data.ng]) * data.pmin
-            qg = out2[:, data.ng:2*data.ng] * data.qmax + (1-out2[:, data.ng:2*data.ng]) * data.qmin
-            vm = out2[:, 2*data.ng:] * data.vmax + (1- out2[:, 2*data.ng:]) * data.vmin
+            pg = out2[:, :data.ng] * data.pmax + (1 - out2[:, :data.ng]) * data.pmin
+            qg = out2[:, data.ng:2 * data.ng] * data.qmax + (1 - out2[:, data.ng:2 * data.ng]) * data.qmin
+            vm = out2[:, 2 * data.ng:] * data.vmax + (1 - out2[:, 2 * data.ng:]) * data.vmin
             return torch.cat([pg, qg, vm, out[:, -data.nbus:]], dim=1)
         else:
             raise NotImplementedError
 
 
-if __name__=='__main__':
+if __name__ == '__main__':
     main()

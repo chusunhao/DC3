@@ -1,5 +1,6 @@
 try:
     import waitGPU
+
     waitGPU.wait(utilization=50, memory_ratio=0.5, available_memory=5000, interval=9, nproc=1, ngpu=1)
 except ImportError:
     pass
@@ -7,6 +8,7 @@ except ImportError:
 import torch
 import torch.nn as nn
 import torch.optim as optim
+
 torch.set_default_dtype(torch.float64)
 
 import operator
@@ -25,31 +27,32 @@ import default_args
 
 DEVICE = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
+
 def main():
     parser = argparse.ArgumentParser(description='baseline_opt')
     parser.add_argument('--probType', type=str, default='acopf57',
-        choices=['simple', 'nonconvex', 'acopf57'], help='problem type')
-    parser.add_argument('--simpleVar', type=int, 
-        help='number of decision vars for simple problem')
+                        choices=['simple', 'nonconvex', 'acopf57'], help='problem type')
+    parser.add_argument('--simpleVar', type=int,
+                        help='number of decision vars for simple problem')
     parser.add_argument('--simpleIneq', type=int,
-        help='number of inequality constraints for simple problem')
+                        help='number of inequality constraints for simple problem')
     parser.add_argument('--simpleEq', type=int,
-        help='number of equality constraints for simple problem')
+                        help='number of equality constraints for simple problem')
     parser.add_argument('--simpleEx', type=int,
-        help='total number of datapoints for simple problem')
+                        help='total number of datapoints for simple problem')
     parser.add_argument('--nonconvexVar', type=int,
-        help='number of decision vars for nonconvex problem')
+                        help='number of decision vars for nonconvex problem')
     parser.add_argument('--nonconvexIneq', type=int,
-        help='number of inequality constraints for nonconvex problem')
+                        help='number of inequality constraints for nonconvex problem')
     parser.add_argument('--nonconvexEq', type=int,
-        help='number of equality constraints for nonconvex problem')
+                        help='number of equality constraints for nonconvex problem')
     parser.add_argument('--nonconvexEx', type=int,
-        help='total number of datapoints for nonconvex problem')
+                        help='total number of datapoints for nonconvex problem')
     parser.add_argument('--corrEps', type=float,
-        help='correction procedure tolerance')
+                        help='correction procedure tolerance')
 
     args = parser.parse_args()
-    args = vars(args) # change to dictionary
+    args = vars(args)  # change to dictionary
     defaults = default_args.baseline_opt_default_args(args['probType'])
     for key in defaults.keys():
         if args[key] is None:
@@ -83,7 +86,6 @@ def main():
                 pass
     data._device = DEVICE
 
-
     ## Run pure optimization baselines
     if prob_type == 'simple':
         solvers = ['osqp', 'qpth']
@@ -94,18 +96,22 @@ def main():
 
     for solver in solvers:
         save_dir = os.path.join('results', str(data), 'baselineOpt-{}'.format(solver),
-            'run', str(time.time()).replace('.', '-'))
+                                'run', str(time.time()).replace('.', '-'))
         if not os.path.exists(save_dir):
             os.makedirs(save_dir)
-        Yvalid_opt, valid_time_total, valid_time_parallel = data.opt_solve(data.validX, solver_type=solver, tol=args['corrEps'])
-        Ytest_opt, test_time_total, test_time_parallel = data.opt_solve(data.testX, solver_type=solver, tol=args['corrEps'])
+        Yvalid_opt, valid_time_total, valid_time_parallel = data.opt_solve(data.validX, solver_type=solver,
+                                                                           tol=args['corrEps'])
+        Ytest_opt, test_time_total, test_time_parallel = data.opt_solve(data.testX, solver_type=solver,
+                                                                        tol=args['corrEps'])
         opt_results = get_opt_results(data, args, torch.tensor(Yvalid_opt).to(DEVICE),
-                                       torch.tensor(Ytest_opt).to(DEVICE))
+                                      torch.tensor(Ytest_opt).to(DEVICE))
         opt_results.update(
             dict([('test_time', test_time_parallel), ('valid_time', valid_time_parallel), ('train_time', 0),
-                ('test_time_total', test_time_total), ('valid_time_total', valid_time_total), ('train_time_total', 0)]))
+                  ('test_time_total', test_time_total), ('valid_time_total', valid_time_total),
+                  ('train_time_total', 0)]))
         with open(os.path.join(save_dir, 'results.dict'), 'wb') as f:
             pickle.dump(opt_results, f)
+
 
 def get_opt_results(data, args, Yvalid, Ytest, Yvalid_precorr=None, Ytest_precorr=None):
     eps_converge = args['corrEps']
@@ -114,20 +120,20 @@ def get_opt_results(data, args, Yvalid, Ytest, Yvalid_precorr=None, Ytest_precor
     results['valid_ineq_max'] = torch.max(data.ineq_dist(data.validX, Yvalid), dim=1)[0].detach().cpu().numpy()
     results['valid_ineq_mean'] = torch.mean(data.ineq_dist(data.validX, Yvalid), dim=1).detach().cpu().numpy()
     results['valid_ineq_num_viol_0'] = torch.sum(data.ineq_dist(data.validX, Yvalid) > eps_converge,
-                                               dim=1).detach().cpu().numpy()
+                                                 dim=1).detach().cpu().numpy()
     results['valid_ineq_num_viol_1'] = torch.sum(data.ineq_dist(data.validX, Yvalid) > 10 * eps_converge,
-                                               dim=1).detach().cpu().numpy()
+                                                 dim=1).detach().cpu().numpy()
     results['valid_ineq_num_viol_2'] = torch.sum(data.ineq_dist(data.validX, Yvalid) > 100 * eps_converge,
-                                               dim=1).detach().cpu().numpy()
+                                                 dim=1).detach().cpu().numpy()
     results['valid_eq_max'] = torch.max(torch.abs(data.eq_resid(data.validX, Yvalid)), dim=1)[0].detach().cpu().numpy()
     results['valid_eq_mean'] = torch.mean(torch.abs(data.eq_resid(data.validX, Yvalid)),
-                                              dim=1).detach().cpu().numpy()
+                                          dim=1).detach().cpu().numpy()
     results['valid_eq_num_viol_0'] = torch.sum(torch.abs(data.eq_resid(data.validX, Yvalid)) > eps_converge,
-                                                   dim=1).detach().cpu().numpy()
+                                               dim=1).detach().cpu().numpy()
     results['valid_eq_num_viol_1'] = torch.sum(torch.abs(data.eq_resid(data.validX, Yvalid)) > 10 * eps_converge,
-                                             dim=1).detach().cpu().numpy()
+                                               dim=1).detach().cpu().numpy()
     results['valid_eq_num_viol_2'] = torch.sum(torch.abs(data.eq_resid(data.validX, Yvalid)) > 100 * eps_converge,
-                                                   dim=1).detach().cpu().numpy()
+                                               dim=1).detach().cpu().numpy()
 
     if Yvalid_precorr is not None:
         results['valid_correction_dist'] = torch.norm(Yvalid - Yvalid_precorr, dim=1).detach().cpu().numpy()
@@ -135,23 +141,24 @@ def get_opt_results(data, args, Yvalid, Ytest, Yvalid_precorr=None, Ytest_precor
     results['test_ineq_max'] = torch.max(data.ineq_dist(data.testX, Ytest), dim=1)[0].detach().cpu().numpy()
     results['test_ineq_mean'] = torch.mean(data.ineq_dist(data.testX, Ytest), dim=1).detach().cpu().numpy()
     results['test_ineq_num_viol_0'] = torch.sum(data.ineq_dist(data.testX, Ytest) > eps_converge,
-                                              dim=1).detach().cpu().numpy()
+                                                dim=1).detach().cpu().numpy()
     results['test_ineq_num_viol_1'] = torch.sum(data.ineq_dist(data.testX, Ytest) > 10 * eps_converge,
-                                              dim=1).detach().cpu().numpy()
+                                                dim=1).detach().cpu().numpy()
     results['test_ineq_num_viol_2'] = torch.sum(data.ineq_dist(data.testX, Ytest) > 100 * eps_converge,
-                                              dim=1).detach().cpu().numpy()
+                                                dim=1).detach().cpu().numpy()
     results['test_eq_max'] = torch.max(torch.abs(data.eq_resid(data.testX, Ytest)), dim=1)[0].detach().cpu().numpy()
     results['test_eq_mean'] = torch.mean(torch.abs(data.eq_resid(data.testX, Ytest)),
-                                              dim=1).detach().cpu().numpy()
+                                         dim=1).detach().cpu().numpy()
     results['test_eq_num_viol_0'] = torch.sum(torch.abs(data.eq_resid(data.testX, Ytest)) > eps_converge,
-                                                   dim=1).detach().cpu().numpy()
+                                              dim=1).detach().cpu().numpy()
     results['test_eq_num_viol_1'] = torch.sum(torch.abs(data.eq_resid(data.testX, Ytest)) > 10 * eps_converge,
-                                             dim=1).detach().cpu().numpy()
+                                              dim=1).detach().cpu().numpy()
     results['test_eq_num_viol_2'] = torch.sum(torch.abs(data.eq_resid(data.testX, Ytest)) > 100 * eps_converge,
-                                                   dim=1).detach().cpu().numpy()
+                                              dim=1).detach().cpu().numpy()
     if Ytest_precorr is not None:
         results['test_correction_dist'] = torch.norm(Ytest - Ytest_precorr, dim=1).detach().cpu().numpy()
     return results
+
 
 # Modifies stats in place
 def dict_agg(stats, key, value, op='concat'):
@@ -165,5 +172,6 @@ def dict_agg(stats, key, value, op='concat'):
     else:
         stats[key] = value
 
-if __name__=='__main__':
+
+if __name__ == '__main__':
     main()

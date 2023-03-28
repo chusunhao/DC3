@@ -2,6 +2,7 @@ import os
 import pickle
 import numpy as np
 
+
 # Load and save experiment status and summary stats
 #   Assumes set of experiments and flag settings used in run_expers.sh
 def main():
@@ -21,11 +22,11 @@ def get_experiment_dirs(path_prefix):
     eq = 50
     for ineq in [10, 30, 50, 70, 90]:
         exper_dirs['simple_ineq{}_eq{}'.format(ineq, eq)] = 'SimpleProblem-100-{}-{}-10000'.format(ineq, eq)
-        
+
     ineq = 50
     for eq in [10, 30, 70, 90]:
         exper_dirs['simple_ineq{}_eq{}'.format(ineq, eq)] = 'SimpleProblem-100-{}-{}-10000'.format(ineq, eq)
-        
+
     exper_dirs['nonconvex'] = 'NonconvexProblem-100-50-50-10000'
 
     exper_dirs['acopf'] = 'ACOPF-57-0-0.5-0.7-0.0833-0.0833'
@@ -42,43 +43,42 @@ def get_status_results(exper_dirs):
     all_stats = {}
 
     opt_methods = dict([
-            ('simple', ['osqp', 'qpth']), ('nonconvex', ['ipopt']), ('acopf', ['pypower'])
+        ('simple', ['osqp', 'qpth']), ('nonconvex', ['ipopt']), ('acopf', ['pypower'])
     ])
     nn_baseline_dirs = [('baseline_nn', 'baselineNN'), ('baseline_eq_nn', 'baselineEqNN')]
 
     for exper, exper_dir in exper_dirs.items():
         print(exper)
-        
+
         exper_status_dict = {}
         stats_dict = {}
-        
+
         if os.path.exists(exper_dir):
 
             ## Get mapping of subdirs to methods
-            
+
             # DC3
             method_path = os.path.join(exper_dir, 'method')
             dir_method_map = get_dc3_path_mapping(method_path)
 
             # baselines
             all_methods_dirs = nn_baseline_dirs + \
-                [('baseline_opt_{}'.format(x), 'baselineOpt-{}'.format(x)) for x in \
-                    opt_methods[exper.split('_')[0]]]
+                               [('baseline_opt_{}'.format(x), 'baselineOpt-{}'.format(x)) for x in \
+                                opt_methods[exper.split('_')[0]]]
             for (method, dirname) in all_methods_dirs:
                 path = os.path.join(exper_dir, dirname)
                 if os.path.exists(path):
                     path = os.path.join(path, os.listdir(path)[0])
                     dir_method_map[method] = path
 
-            
             ## Get stats
             for method, path in dir_method_map.items():
                 print(method)
                 aggregate_for_method(method, path, exper_status_dict, stats_dict)
-        
+
         num_running_done[exper] = exper_status_dict
         all_stats[exper] = stats_dict
-        
+
     return num_running_done, all_stats
 
 
@@ -92,7 +92,7 @@ def get_dc3_path_mapping(method_path):
             if os.path.exists(os.path.join(path, 'args.dict')):
                 with open(os.path.join(path, 'args.dict'), 'rb') as f:
                     args = pickle.load(f)
-    
+
             if not args['useCompl']:
                 chosen_method = 'method_no_compl'
             elif not args['useTrainCorr']:
@@ -100,7 +100,7 @@ def get_dc3_path_mapping(method_path):
             elif args['softWeight'] == 0:
                 chosen_method = 'method_no_soft'
             else:
-                chosen_method = 'method' 
+                chosen_method = 'method'
 
             dir_method_map[chosen_method] = os.path.join(method_path, args_dir)
     return dir_method_map
@@ -110,8 +110,8 @@ def get_dc3_path_mapping(method_path):
 def aggregate_for_method(method_name, method_path, exper_status_dict, stats_dict):
     method_stats = []
     sub_dirs = os.listdir(method_path)
-    exper_status_dict[method_name] = (0,0)
-    
+    exper_status_dict[method_name] = (0, 0)
+
     # get status and stats
     for d2 in sub_dirs:
         is_done, stats = check_running_done(
@@ -123,7 +123,7 @@ def aggregate_for_method(method_name, method_path, exper_status_dict, stats_dict
         else:
             print(os.path.join(method_path, d2))
             exper_status_dict[method_name] = (running + 1, done)
-    
+
         # aggregate metrics (TODO accommodate both data saving cases)
         if len(method_stats) == 0:
             continue
@@ -145,14 +145,14 @@ def aggregate_for_method(method_name, method_path, exper_status_dict, stats_dict
 def check_running_done(path, is_opt=False):
     is_done = False
     stats = None
-    
+
     if is_opt:
         if os.path.exists(os.path.join(path, 'results.dict')):
             with open(os.path.join(path, 'results.dict'), 'rb') as f:
                 stats = pickle.load(f)
             is_done = True
-    else:        
-        try:   
+    else:
+        try:
             if os.path.exists(os.path.join(path, 'stats.dict')):
                 with open(os.path.join(path, 'stats.dict'), 'rb') as f:
                     stats = pickle.load(f)
@@ -162,8 +162,8 @@ def check_running_done(path, is_opt=False):
         except Exception as e:
             print(str(e))
             is_done = False
-            stats  = None
-            
+            stats = None
+
     return is_done, stats
 
 
@@ -172,7 +172,7 @@ def check_running_done(path, is_opt=False):
 def get_mean_std_nets(stats_dicts, metric):
     if 'train_time' in metric:
         results = [d[metric].sum() for d in stats_dicts]
-    elif 'time' in metric:  
+    elif 'time' in metric:
         # test and valid time: use time for latest epoch
         results = [d[metric][-1] for d in stats_dicts]
     else:
@@ -181,6 +181,7 @@ def get_mean_std_nets(stats_dicts, metric):
 
     # return mean and stddev across replicates
     return np.mean(results), np.std(results)
+
 
 # Compute summary stats for baseline optimizers
 def get_mean_std_opts(stats_dicts, metric):

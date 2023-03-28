@@ -18,6 +18,7 @@ def baseline_opt_default_args(prob_type):
 
     return defaults
 
+
 def baseline_nn_default_args(prob_type):
     defaults = {}
     defaults['simpleVar'] = 100
@@ -71,6 +72,7 @@ def baseline_nn_default_args(prob_type):
         raise NotImplementedError
 
     return defaults
+
 
 def baseline_eq_nn_default_args(prob_type):
     defaults = {}
@@ -126,6 +128,7 @@ def baseline_eq_nn_default_args(prob_type):
 
     return defaults
 
+
 def method_default_args(prob_type):
     defaults = {}
     defaults['simpleVar'] = 100
@@ -144,12 +147,12 @@ def method_default_args(prob_type):
         defaults['batchSize'] = 200
         defaults['lr'] = 1e-4
         defaults['hiddenSize'] = 200
-        defaults['softWeight'] = 10          # use 100 if useCompl=False
+        defaults['softWeight'] = 10  # use 100 if useCompl=False
         defaults['softWeightEqFrac'] = 0.5
         defaults['useCompl'] = True
         defaults['useTrainCorr'] = True
         defaults['useTestCorr'] = True
-        defaults['corrMode'] = 'partial'    # use 'full' if useCompl=False
+        defaults['corrMode'] = 'partial'  # use 'full' if useCompl=False
         defaults['corrTrainSteps'] = 10
         defaults['corrTestMaxSteps'] = 10
         defaults['corrEps'] = 1e-4
@@ -160,12 +163,12 @@ def method_default_args(prob_type):
         defaults['batchSize'] = 200
         defaults['lr'] = 1e-4
         defaults['hiddenSize'] = 200
-        defaults['softWeight'] = 10          # use 100 if useCompl=False
+        defaults['softWeight'] = 10  # use 100 if useCompl=False
         defaults['softWeightEqFrac'] = 0.5
         defaults['useCompl'] = True
         defaults['useTrainCorr'] = True
         defaults['useTestCorr'] = True
-        defaults['corrMode'] = 'partial'    # use 'full' if useCompl=False
+        defaults['corrMode'] = 'partial'  # use 'full' if useCompl=False
         defaults['corrTrainSteps'] = 10
         defaults['corrTestMaxSteps'] = 10
         defaults['corrEps'] = 1e-4
@@ -176,16 +179,16 @@ def method_default_args(prob_type):
         defaults['batchSize'] = 200
         defaults['lr'] = 1e-3
         defaults['hiddenSize'] = 200
-        defaults['softWeight'] = 10             # use 100 if useCompl=False
+        defaults['softWeight'] = 10  # use 100 if useCompl=False
         defaults['softWeightEqFrac'] = 0.5
         defaults['useCompl'] = True
         defaults['useTrainCorr'] = True
         defaults['useTestCorr'] = True
-        defaults['corrMode'] = 'partial'    # use 'full' if useCompl=False
+        defaults['corrMode'] = 'partial'  # use 'full' if useCompl=False
         defaults['corrTrainSteps'] = 5
         defaults['corrTestMaxSteps'] = 5
         defaults['corrEps'] = 1e-4
-        defaults['corrLr'] = 1e-4           # use 1e-5 if useCompl=False
+        defaults['corrLr'] = 1e-4  # use 1e-5 if useCompl=False
         defaults['corrMomentum'] = 0.5
     else:
         raise NotImplementedError

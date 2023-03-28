@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 from torch.autograd import Function
+
 torch.set_default_dtype(torch.float64)
 
 import numpy as np
@@ -31,6 +32,7 @@ def str_to_bool(value):
         return True
     raise ValueError('{value} is not a valid boolean value')
 
+
 def my_hash(string):
     return hashlib.sha1(bytes(string, 'utf-8')).hexdigest()
 
@@ -45,6 +47,7 @@ class SimpleProblem:
         s.t.       Ay =  x
                    Gy <= h
     """
+
     def __init__(self, Q, p, A, G, h, X, valid_frac=0.0833, test_frac=0.0833):
         self._Q = torch.tensor(Q)
         self._p = torch.tensor(p)
@@ -65,7 +68,7 @@ class SimpleProblem:
         i = 0
         while abs(det) < 0.0001 and i < 100:
             self._partial_vars = np.random.choice(self._ydim, self._ydim - self._neq, replace=False)
-            self._other_vars = np.setdiff1d( np.arange(self._ydim), self._partial_vars)
+            self._other_vars = np.setdiff1d(np.arange(self._ydim), self._partial_vars)
             det = torch.det(self._A[:, self._other_vars])
             i += 1
         if i == 100:
@@ -188,51 +191,51 @@ class SimpleProblem:
 
     @property
     def trainX(self):
-        return self.X[:int(self.num*self.train_frac)]
+        return self.X[:int(self.num * self.train_frac)]
 
     @property
     def validX(self):
-        return self.X[int(self.num*self.train_frac):int(self.num*(self.train_frac + self.valid_frac))]
+        return self.X[int(self.num * self.train_frac):int(self.num * (self.train_frac + self.valid_frac))]
 
     @property
     def testX(self):
-        return self.X[int(self.num*(self.train_frac + self.valid_frac)):]
+        return self.X[int(self.num * (self.train_frac + self.valid_frac)):]
 
     @property
     def trainY(self):
-        return self.Y[:int(self.num*self.train_frac)]
+        return self.Y[:int(self.num * self.train_frac)]
 
     @property
     def validY(self):
-        return self.Y[int(self.num*self.train_frac):int(self.num*(self.train_frac + self.valid_frac))]
+        return self.Y[int(self.num * self.train_frac):int(self.num * (self.train_frac + self.valid_frac))]
 
     @property
     def testY(self):
-        return self.Y[int(self.num*(self.train_frac + self.valid_frac)):]
+        return self.Y[int(self.num * (self.train_frac + self.valid_frac)):]
 
     @property
     def device(self):
         return self._device
 
     def obj_fn(self, Y):
-        return (0.5*(Y@self.Q)*Y + self.p*Y).sum(dim=1)
+        return (0.5 * (Y @ self.Q) * Y + self.p * Y).sum(dim=1)
 
     def eq_resid(self, X, Y):
-        return X - Y@self.A.T
+        return X - Y @ self.A.T
 
     def ineq_resid(self, X, Y):
-        return Y@self.G.T - self.h
+        return Y @ self.G.T - self.h
 
     def ineq_dist(self, X, Y):
         resids = self.ineq_resid(X, Y)
         return torch.clamp(resids, 0)
 
     def eq_grad(self, X, Y):
-        return 2*(Y@self.A.T - X)@self.A
+        return 2 * (Y @ self.A.T - X) @ self.A
 
     def ineq_grad(self, X, Y):
         ineq_dist = self.ineq_dist(X, Y)
-        return 2*ineq_dist@self.G
+        return 2 * ineq_dist @ self.G
 
     def ineq_partial_grad(self, X, Y):
         G_effective = self.G[:, self.partial_vars] - self.G[:, self.other_vars] @ (self._A_other_inv @ self._A_partial)
@@ -265,7 +268,7 @@ class SimpleProblem:
             sols = np.array(res.detach().cpu().numpy())
             total_time = end_time - start_time
             parallel_time = total_time
-        
+
         elif solver_type == 'osqp':
             print('running osqp')
             Q, p, A, G, h = \
@@ -290,7 +293,7 @@ class SimpleProblem:
                     Y.append(np.ones(self.ydim) * np.nan)
 
             sols = np.array(Y)
-            parallel_time = total_time/len(X_np)
+            parallel_time = total_time / len(X_np)
 
         else:
             raise NotImplementedError
@@ -299,7 +302,7 @@ class SimpleProblem:
 
     def calc_Y(self):
         Y = self.opt_solve(self.X)[0]
-        feas_mask =  ~np.isnan(Y).all(axis=1)  
+        feas_mask = ~np.isnan(Y).all(axis=1)
         self._num = feas_mask.sum()
         self._X = self._X[feas_mask]
         self._Y = torch.tensor(Y[feas_mask])
@@ -316,6 +319,7 @@ class NonconvexProblem:
         s.t.       Ay =  x
                    Gy <= h
     """
+
     def __init__(self, Q, p, A, G, h, X, valid_frac=0.0833, test_frac=0.0833):
         self._Q = torch.tensor(Q)
         self._p = torch.tensor(p)
@@ -336,7 +340,7 @@ class NonconvexProblem:
         i = 0
         while abs(det) < 0.0001 and i < 100:
             self._partial_vars = np.random.choice(self._ydim, self._ydim - self._neq, replace=False)
-            self._other_vars = np.setdiff1d( np.arange(self._ydim), self._partial_vars)
+            self._other_vars = np.setdiff1d(np.arange(self._ydim), self._partial_vars)
             det = torch.det(self._A[:, self._other_vars])
             i += 1
         if i == 100:
@@ -345,7 +349,7 @@ class NonconvexProblem:
             self._A_partial = self._A[:, self._partial_vars]
             self._A_other_inv = torch.inverse(self._A[:, self._other_vars])
             self._M = 2 * (self.G[:, self.partial_vars] -
-                            self.G[:, self.other_vars] @ (self._A_other_inv @ self._A_partial))
+                           self.G[:, self.other_vars] @ (self._A_other_inv @ self._A_partial))
 
         ### For Pytorch
         self._device = None
@@ -461,53 +465,53 @@ class NonconvexProblem:
 
     @property
     def trainX(self):
-        return self.X[:int(self.num*self.train_frac)]
+        return self.X[:int(self.num * self.train_frac)]
 
     @property
     def validX(self):
-        return self.X[int(self.num*self.train_frac):int(self.num*(self.train_frac + self.valid_frac))]
+        return self.X[int(self.num * self.train_frac):int(self.num * (self.train_frac + self.valid_frac))]
 
     @property
     def testX(self):
-        return self.X[int(self.num*(self.train_frac + self.valid_frac)):]
+        return self.X[int(self.num * (self.train_frac + self.valid_frac)):]
 
     @property
     def trainY(self):
-        return self.Y[:int(self.num*self.train_frac)]
+        return self.Y[:int(self.num * self.train_frac)]
 
     @property
     def validY(self):
-        return self.Y[int(self.num*self.train_frac):int(self.num*(self.train_frac + self.valid_frac))]
+        return self.Y[int(self.num * self.train_frac):int(self.num * (self.train_frac + self.valid_frac))]
 
     @property
     def testY(self):
-        return self.Y[int(self.num*(self.train_frac + self.valid_frac)):]
+        return self.Y[int(self.num * (self.train_frac + self.valid_frac)):]
 
     @property
     def device(self):
         return self._device
 
     def obj_fn(self, Y):
-        return (0.5*(Y@self.Q)*Y + self.p*torch.sin(Y)).sum(dim=1)
+        return (0.5 * (Y @ self.Q) * Y + self.p * torch.sin(Y)).sum(dim=1)
 
     def eq_resid(self, X, Y):
-        return X - Y@self.A.T
+        return X - Y @ self.A.T
 
     def ineq_resid(self, X, Y):
-        return Y@self.G.T - self.h
+        return Y @ self.G.T - self.h
 
     def ineq_dist(self, X, Y):
         resids = self.ineq_resid(X, Y)
         return torch.clamp(resids, 0)
 
     def eq_grad(self, X, Y):
-        return 2*(Y@self.A.T - X)@self.A
+        return 2 * (Y @ self.A.T - X) @ self.A
 
     def ineq_grad(self, X, Y):
-        return 2 * torch.clamp(Y@self.G.T - self.h, 0) @ self.G
+        return 2 * torch.clamp(Y @ self.G.T - self.h, 0) @ self.G
 
     def ineq_partial_grad(self, X, Y):
-        grad = torch.clamp(Y@self.G.T - self.h, 0) @ self._M
+        grad = torch.clamp(Y @ self.G.T - self.h, 0) @ self._M
         Y = torch.zeros(X.shape[0], self.ydim, device=self.device)
         Y[:, self.partial_vars] = grad
         Y[:, self.other_vars] = - (grad @ self._A_partial.T) @ self._A_other_inv.T
@@ -531,7 +535,7 @@ class NonconvexProblem:
         total_time = 0
         for Xi in X_np:
             if solver_type == 'ipopt':
-                y0 = np.linalg.pinv(A)@Xi  # feasible initial point
+                y0 = np.linalg.pinv(A) @ Xi  # feasible initial point
 
                 # upper and lower bounds on variables
                 lb = -np.infty * np.ones(y0.shape)
@@ -542,17 +546,17 @@ class NonconvexProblem:
                 cu = np.hstack([Xi, h])
 
                 nlp = ipopt.problem(
-                            n=len(y0),
-                            m=len(cl),
-                            problem_obj=nonconvex_ipopt(Q, p, A, G),
-                            lb=lb,
-                            ub=ub,
-                            cl=cl,
-                            cu=cu
-                            )
+                    n=len(y0),
+                    m=len(cl),
+                    problem_obj=nonconvex_ipopt(Q, p, A, G),
+                    lb=lb,
+                    ub=ub,
+                    cl=cl,
+                    cu=cu
+                )
 
                 nlp.addOption('tol', tol)
-                nlp.addOption('print_level', 0) # 3)
+                nlp.addOption('print_level', 0)  # 3)
 
                 start_time = time.time()
                 y, info = nlp.solve(y0)
@@ -562,15 +566,16 @@ class NonconvexProblem:
             else:
                 raise NotImplementedError
 
-        return np.array(Y), total_time, total_time/len(X_np)
+        return np.array(Y), total_time, total_time / len(X_np)
 
     def calc_Y(self):
         Y = self.opt_solve(self.X)[0]
-        feas_mask =  ~np.isnan(Y).all(axis=1)
+        feas_mask = ~np.isnan(Y).all(axis=1)
         self._num = feas_mask.sum()
         self._X = self._X[feas_mask]
         self._Y = torch.tensor(Y[feas_mask])
         return Y
+
 
 class nonconvex_ipopt(object):
     def __init__(self, Q, p, A, G):
@@ -581,13 +586,13 @@ class nonconvex_ipopt(object):
         self.tril_indices = np.tril_indices(Q.shape[0])
 
     def objective(self, y):
-        return 0.5 * (y @ self.Q @ y) + self.p@np.sin(y)
+        return 0.5 * (y @ self.Q @ y) + self.p @ np.sin(y)
 
     def gradient(self, y):
-        return self.Q@y + (self.p * np.cos(y))
+        return self.Q @ y + (self.p * np.cos(y))
 
     def constraints(self, y):
-        return np.hstack([self.A@y, self.G@y])
+        return np.hstack([self.A @ y, self.G @ y])
 
     def jacobian(self, y):
         return np.concatenate([self.A.flatten(), self.G.flatten()])
@@ -603,13 +608,13 @@ class nonconvex_ipopt(object):
     #     print("Objective value at iteration #%d is - %g" % (iter_count, obj_value))
 
 
-
 ###################################################################
 # ACOPF
 ###################################################################
 
 
 CASE_FNS = dict([(57, case57)])
+
 
 class ACOPFProblem:
     """
@@ -647,22 +652,22 @@ class ACOPFProblem:
         self.nslack = len(self.slack)
         self.npv = len(self.pv)
 
-        self.quad_costs = torch.tensor(ppc['gencost'][:,4], dtype=torch.get_default_dtype())
-        self.lin_costs  = torch.tensor(ppc['gencost'][:,5], dtype=torch.get_default_dtype())
-        self.const_cost = ppc['gencost'][:,6].sum()
+        self.quad_costs = torch.tensor(ppc['gencost'][:, 4], dtype=torch.get_default_dtype())
+        self.lin_costs = torch.tensor(ppc['gencost'][:, 5], dtype=torch.get_default_dtype())
+        self.const_cost = ppc['gencost'][:, 6].sum()
 
-        self.pmax = torch.tensor(ppc['gen'][:,idx_gen.PMAX] / self.genbase, dtype=torch.get_default_dtype())
-        self.pmin = torch.tensor(ppc['gen'][:,idx_gen.PMIN] / self.genbase, dtype=torch.get_default_dtype())
-        self.qmax = torch.tensor(ppc['gen'][:,idx_gen.QMAX] / self.genbase, dtype=torch.get_default_dtype())
-        self.qmin = torch.tensor(ppc['gen'][:,idx_gen.QMIN] / self.genbase, dtype=torch.get_default_dtype())
-        self.vmax = torch.tensor(ppc['bus'][:,idx_bus.VMAX], dtype=torch.get_default_dtype())
-        self.vmin = torch.tensor(ppc['bus'][:,idx_bus.VMIN], dtype=torch.get_default_dtype())
-        self.slackva = torch.tensor([np.deg2rad(ppc['bus'][self.slack, idx_bus.VA])], 
-            dtype=torch.get_default_dtype()).squeeze(-1)
+        self.pmax = torch.tensor(ppc['gen'][:, idx_gen.PMAX] / self.genbase, dtype=torch.get_default_dtype())
+        self.pmin = torch.tensor(ppc['gen'][:, idx_gen.PMIN] / self.genbase, dtype=torch.get_default_dtype())
+        self.qmax = torch.tensor(ppc['gen'][:, idx_gen.QMAX] / self.genbase, dtype=torch.get_default_dtype())
+        self.qmin = torch.tensor(ppc['gen'][:, idx_gen.QMIN] / self.genbase, dtype=torch.get_default_dtype())
+        self.vmax = torch.tensor(ppc['bus'][:, idx_bus.VMAX], dtype=torch.get_default_dtype())
+        self.vmin = torch.tensor(ppc['bus'][:, idx_bus.VMIN], dtype=torch.get_default_dtype())
+        self.slackva = torch.tensor([np.deg2rad(ppc['bus'][self.slack, idx_bus.VA])],
+                                    dtype=torch.get_default_dtype()).squeeze(-1)
 
         ppc2 = deepcopy(ppc)
-        ppc2['bus'][:,0] -= 1
-        ppc2['branch'][:,[0,1]] -= 1
+        ppc2['bus'][:, 0] -= 1
+        ppc2['branch'][:, [0, 1]] -= 1
         Ybus, _, _ = makeYbus(self.baseMVA, ppc2['bus'], ppc2['branch'])
         Ybus = Ybus.todense()
         self.Ybusr = torch.tensor(np.real(Ybus), dtype=torch.get_default_dtype())
@@ -670,12 +675,12 @@ class ACOPFProblem:
 
         ## Define optimization problem input and output variables
         demand = data['Dem'].T / self.baseMVA
-        gen =  data['Gen'].T / self.genbase
+        gen = data['Gen'].T / self.genbase
         voltage = data['Vol'].T
 
         X = np.concatenate([np.real(demand), np.imag(demand)], axis=1)
         Y = np.concatenate([np.real(gen), np.imag(gen), np.abs(voltage), np.angle(voltage)], axis=1)
-        feas_mask =  ~np.isnan(Y).any(axis=1)
+        feas_mask = ~np.isnan(Y).any(axis=1)
 
         self._X = torch.tensor(X[feas_mask], dtype=torch.get_default_dtype())
         self._Y = torch.tensor(Y[feas_mask], dtype=torch.get_default_dtype())
@@ -683,32 +688,30 @@ class ACOPFProblem:
         self._ydim = Y.shape[1]
         self._num = feas_mask.sum()
 
-        self._neq = 2*self.nbus
-        self._nineq = 4*self.ng + 2*self.nbus
+        self._neq = 2 * self.nbus
+        self._nineq = 4 * self.ng + 2 * self.nbus
         self._nknowns = self.nslack
 
         # indices of useful quantities in full solution
         self.pg_start_yidx = 0
         self.qg_start_yidx = self.ng
-        self.vm_start_yidx = 2*self.ng
-        self.va_start_yidx = 2*self.ng + self.nbus
-
+        self.vm_start_yidx = 2 * self.ng
+        self.va_start_yidx = 2 * self.ng + self.nbus
 
         ## Keep parameters indicating how data was generated
         self.EPS_INTERIOR = data['EPS_INTERIOR'][0][0]
         self.CorrCoeff = data['CorrCoeff'][0][0]
         self.MaxChangeLoad = data['MaxChangeLoad'][0][0]
 
-
         ## Define train/valid/test split
         self._valid_frac = valid_frac
         self._test_frac = test_frac
 
-
         ## Define variables and indices for "partial completion" neural network
 
         # pg (non-slack) and |v|_g (including slack)
-        self._partial_vars = np.concatenate([self.pg_start_yidx + self.pv_, self.vm_start_yidx + self.spv, self.va_start_yidx + self.slack])
+        self._partial_vars = np.concatenate(
+            [self.pg_start_yidx + self.pv_, self.vm_start_yidx + self.spv, self.va_start_yidx + self.slack])
         self._other_vars = np.setdiff1d(np.arange(self.ydim), self._partial_vars)
         self._partial_unknown_vars = np.concatenate([self.pg_start_yidx + self.pv_, self.vm_start_yidx + self.spv])
 
@@ -723,16 +726,14 @@ class ACOPFProblem:
 
         # indices of useful quantities in partial solution
         self.pg_pv_zidx = np.arange(self.npv)
-        self.vm_spv_zidx = np.arange(self.npv, 2*self.npv + self.nslack)
+        self.vm_spv_zidx = np.arange(self.npv, 2 * self.npv + self.nslack)
 
         # useful indices for equality constraints
         self.pflow_start_eqidx = 0
         self.qflow_start_eqidx = self.nbus
 
-
         ### For Pytorch
         self._device = None
-
 
     def __str__(self):
         return 'ACOPF-{}-{}-{}-{}-{}-{}'.format(
@@ -810,15 +811,15 @@ class ACOPFProblem:
 
     @property
     def trainY(self):
-        return self.Y[:int(self.num*self.train_frac)]
+        return self.Y[:int(self.num * self.train_frac)]
 
     @property
     def validY(self):
-        return self.Y[int(self.num*self.train_frac):int(self.num*(self.train_frac + self.valid_frac))]
+        return self.Y[int(self.num * self.train_frac):int(self.num * (self.train_frac + self.valid_frac))]
 
     @property
     def testY(self):
-        return self.Y[int(self.num*(self.train_frac + self.valid_frac)):]
+        return self.Y[int(self.num * (self.train_frac + self.valid_frac)):]
 
     @property
     def device(self):
@@ -826,45 +827,45 @@ class ACOPFProblem:
 
     def get_yvars(self, Y):
         pg = Y[:, :self.ng]
-        qg = Y[:, self.ng:2*self.ng]
-        vm = Y[:, -2*self.nbus:-self.nbus]
+        qg = Y[:, self.ng:2 * self.ng]
+        vm = Y[:, -2 * self.nbus:-self.nbus]
         va = Y[:, -self.nbus:]
         return pg, qg, vm, va
 
     def obj_fn(self, Y):
         pg, _, _, _ = self.get_yvars(Y)
         pg_mw = pg * torch.tensor(self.genbase).to(self.device)
-        cost = (self.quad_costs * pg_mw**2).sum(axis=1) + \
-            (self.lin_costs * pg_mw).sum(axis=1) + \
-            self.const_cost
+        cost = (self.quad_costs * pg_mw ** 2).sum(axis=1) + \
+               (self.lin_costs * pg_mw).sum(axis=1) + \
+               self.const_cost
         return cost / (self.genbase.mean() ** 2)
 
     def eq_resid(self, X, Y):
         pg, qg, vm, va = self.get_yvars(Y)
 
-        vr = vm*torch.cos(va)
-        vi = vm*torch.sin(va)
+        vr = vm * torch.cos(va)
+        vi = vm * torch.sin(va)
 
         ## power balance equations
-        tmp1 = vr@self.Ybusr - vi@self.Ybusi
-        tmp2 = -vr@self.Ybusi - vi@self.Ybusr
+        tmp1 = vr @ self.Ybusr - vi @ self.Ybusi
+        tmp2 = -vr @ self.Ybusi - vi @ self.Ybusr
 
         # real power
         pg_expand = torch.zeros(pg.shape[0], self.nbus, device=self.device)
         pg_expand[:, self.spv] = pg
-        real_resid = (pg_expand - X[:, :self.nbus]) - (vr*tmp1 - vi*tmp2)
+        real_resid = (pg_expand - X[:, :self.nbus]) - (vr * tmp1 - vi * tmp2)
 
         # reactive power
         qg_expand = torch.zeros(qg.shape[0], self.nbus, device=self.device)
         qg_expand[:, self.spv] = qg
-        react_resid = (qg_expand - X[:, self.nbus:]) - (vr*tmp2 + vi*tmp1)
+        react_resid = (qg_expand - X[:, self.nbus:]) - (vr * tmp2 + vi * tmp1)
 
         ## all residuals
         resids = torch.cat([
             real_resid,
             react_resid
         ], dim=1)
-        
+
         return resids
 
     def ineq_resid(self, X, Y):
@@ -885,20 +886,20 @@ class ACOPFProblem:
 
     def eq_grad(self, X, Y):
         eq_jac = self.eq_jac(Y)
-        eq_resid = self.eq_resid(X,Y)
-        return 2*eq_jac.transpose(1,2).bmm(eq_resid.unsqueeze(-1)).squeeze(-1)
+        eq_resid = self.eq_resid(X, Y)
+        return 2 * eq_jac.transpose(1, 2).bmm(eq_resid.unsqueeze(-1)).squeeze(-1)
 
     def ineq_grad(self, X, Y):
         ineq_jac = self.ineq_jac(Y)
         ineq_dist = self.ineq_dist(X, Y)
-        return 2*ineq_jac.transpose(1,2).bmm(ineq_dist.unsqueeze(-1)).squeeze(-1)
+        return 2 * ineq_jac.transpose(1, 2).bmm(ineq_dist.unsqueeze(-1)).squeeze(-1)
 
     def ineq_partial_grad(self, X, Y):
         eq_jac = self.eq_jac(Y)
         dynz_dz = -torch.inverse(eq_jac[:, :, self.other_vars]).bmm(eq_jac[:, :, self.partial_vars])
 
         direct_grad = self.ineq_grad(X, Y)
-        indirect_partial_grad = dynz_dz.transpose(1,2).bmm(
+        indirect_partial_grad = dynz_dz.transpose(1, 2).bmm(
             direct_grad[:, self.other_vars].unsqueeze(-1)).squeeze(-1)
 
         full_partial_grad = indirect_partial_grad + direct_grad[:, self.partial_vars]
@@ -924,73 +925,72 @@ class ACOPFProblem:
         vi = vm * torch.sin(va)
         Yr = self.Ybusr
         Yi = self.Ybusi
-        YrvrYivi = vr@Yr - vi@Yi
-        YivrYrvi = vr@Yi + vi@Yr
+        YrvrYivi = vr @ Yr - vi @ Yi
+        YivrYrvi = vr @ Yi + vi @ Yr
 
         # real power equations
-        dreal_dpg = torch.zeros(self.nbus, self.ng, device=self.device) 
+        dreal_dpg = torch.zeros(self.nbus, self.ng, device=self.device)
         dreal_dpg[self.spv, :] = torch.eye(self.ng, device=self.device)
-        dreal_dvm = -mdiag(cosva, YrvrYivi) - dtm(vr, Ydiagv(Yr, cosva)-Ydiagv(Yi, sinva)) \
-            -mdiag(sinva, YivrYrvi) - dtm(vi, Ydiagv(Yi, cosva)+Ydiagv(Yr, sinva))
-        dreal_dva = -mdiag(-vi, YrvrYivi) - dtm(vr, Ydiagv(Yr, -vi)-Ydiagv(Yi, vr)) \
-            -mdiag(vr, YivrYrvi) - dtm(vi, Ydiagv(Yi, -vi)+Ydiagv(Yr, vr))
-        
+        dreal_dvm = -mdiag(cosva, YrvrYivi) - dtm(vr, Ydiagv(Yr, cosva) - Ydiagv(Yi, sinva)) \
+                    - mdiag(sinva, YivrYrvi) - dtm(vi, Ydiagv(Yi, cosva) + Ydiagv(Yr, sinva))
+        dreal_dva = -mdiag(-vi, YrvrYivi) - dtm(vr, Ydiagv(Yr, -vi) - Ydiagv(Yi, vr)) \
+                    - mdiag(vr, YivrYrvi) - dtm(vi, Ydiagv(Yi, -vi) + Ydiagv(Yr, vr))
+
         # reactive power equations
         dreact_dqg = torch.zeros(self.nbus, self.ng, device=self.device)
         dreact_dqg[self.spv, :] = torch.eye(self.ng, device=self.device)
-        dreact_dvm = mdiag(cosva, YivrYrvi) + dtm(vr, Ydiagv(Yi, cosva)+Ydiagv(Yr, sinva)) \
-            -mdiag(sinva, YrvrYivi) - dtm(vi, Ydiagv(Yr, cosva)-Ydiagv(Yi, sinva))
-        dreact_dva = mdiag(-vi, YivrYrvi) + dtm(vr, Ydiagv(Yi, -vi)+Ydiagv(Yr, vr)) \
-            -mdiag(vr, YrvrYivi) - dtm(vi, Ydiagv(Yr, -vi)-Ydiagv(Yi, vr))
+        dreact_dvm = mdiag(cosva, YivrYrvi) + dtm(vr, Ydiagv(Yi, cosva) + Ydiagv(Yr, sinva)) \
+                     - mdiag(sinva, YrvrYivi) - dtm(vi, Ydiagv(Yr, cosva) - Ydiagv(Yi, sinva))
+        dreact_dva = mdiag(-vi, YivrYrvi) + dtm(vr, Ydiagv(Yi, -vi) + Ydiagv(Yr, vr)) \
+                     - mdiag(vr, YrvrYivi) - dtm(vi, Ydiagv(Yr, -vi) - Ydiagv(Yi, vr))
 
         jac = torch.cat([
-            torch.cat([dreal_dpg.unsqueeze(0).expand(vr.shape[0], *dreal_dpg.shape), 
-                torch.zeros(vr.shape[0], self.nbus, self.ng, device=self.device), 
-                dreal_dvm, dreal_dva], dim=2),
-            torch.cat([torch.zeros(vr.shape[0], self.nbus, self.ng, device=self.device), 
-                dreact_dqg.unsqueeze(0).expand(vr.shape[0], *dreact_dqg.shape),
-                dreact_dvm, dreact_dva], dim=2)],
+            torch.cat([dreal_dpg.unsqueeze(0).expand(vr.shape[0], *dreal_dpg.shape),
+                       torch.zeros(vr.shape[0], self.nbus, self.ng, device=self.device),
+                       dreal_dvm, dreal_dva], dim=2),
+            torch.cat([torch.zeros(vr.shape[0], self.nbus, self.ng, device=self.device),
+                       dreact_dqg.unsqueeze(0).expand(vr.shape[0], *dreact_dqg.shape),
+                       dreact_dvm, dreact_dva], dim=2)],
             dim=1)
 
         return jac
 
-
     def ineq_jac(self, Y):
         jac = torch.cat([
-            torch.cat([torch.eye(self.ng, device=self.device), 
-                torch.zeros(self.ng, self.ng, device=self.device), 
-                torch.zeros(self.ng, self.nbus, device=self.device), 
-                torch.zeros(self.ng, self.nbus, device=self.device)], dim=1),
-            torch.cat([-torch.eye(self.ng, device=self.device), 
-                torch.zeros(self.ng, self.ng, device=self.device), 
-                torch.zeros(self.ng, self.nbus, device=self.device), 
-                torch.zeros(self.ng, self.nbus, device=self.device)], dim=1),
+            torch.cat([torch.eye(self.ng, device=self.device),
+                       torch.zeros(self.ng, self.ng, device=self.device),
+                       torch.zeros(self.ng, self.nbus, device=self.device),
+                       torch.zeros(self.ng, self.nbus, device=self.device)], dim=1),
+            torch.cat([-torch.eye(self.ng, device=self.device),
+                       torch.zeros(self.ng, self.ng, device=self.device),
+                       torch.zeros(self.ng, self.nbus, device=self.device),
+                       torch.zeros(self.ng, self.nbus, device=self.device)], dim=1),
             torch.cat([torch.zeros(self.ng, self.ng, device=self.device),
-                torch.eye(self.ng, device=self.device), 
-                torch.zeros(self.ng, self.nbus, device=self.device), 
-                torch.zeros(self.ng, self.nbus, device=self.device)], dim=1),
-            torch.cat([torch.zeros(self.ng, self.ng, device=self.device), 
-                -torch.eye(self.ng, device=self.device),
-                torch.zeros(self.ng, self.nbus, device=self.device), 
-                torch.zeros(self.ng, self.nbus, device=self.device)], dim=1),
+                       torch.eye(self.ng, device=self.device),
+                       torch.zeros(self.ng, self.nbus, device=self.device),
+                       torch.zeros(self.ng, self.nbus, device=self.device)], dim=1),
+            torch.cat([torch.zeros(self.ng, self.ng, device=self.device),
+                       -torch.eye(self.ng, device=self.device),
+                       torch.zeros(self.ng, self.nbus, device=self.device),
+                       torch.zeros(self.ng, self.nbus, device=self.device)], dim=1),
             torch.cat([torch.zeros(self.nbus, self.ng, device=self.device),
-                torch.zeros(self.nbus, self.ng, device=self.device), 
-                torch.eye(self.nbus, device=self.device), 
-                torch.zeros(self.nbus, self.nbus, device=self.device)], dim=1),
-            torch.cat([torch.zeros(self.nbus, self.ng, device=self.device), 
-                torch.zeros(self.nbus, self.ng, device=self.device),
-                -torch.eye(self.nbus, device=self.device), 
-                torch.zeros(self.nbus, self.nbus, device=self.device)], dim=1)
-            ], dim=0)
+                       torch.zeros(self.nbus, self.ng, device=self.device),
+                       torch.eye(self.nbus, device=self.device),
+                       torch.zeros(self.nbus, self.nbus, device=self.device)], dim=1),
+            torch.cat([torch.zeros(self.nbus, self.ng, device=self.device),
+                       torch.zeros(self.nbus, self.ng, device=self.device),
+                       -torch.eye(self.nbus, device=self.device),
+                       torch.zeros(self.nbus, self.nbus, device=self.device)], dim=1)
+        ], dim=0)
         return jac.unsqueeze(0).expand(Y.shape[0], *jac.shape)
 
     # Processes intermediate neural network output
     def process_output(self, X, out):
-        out2 = nn.Sigmoid()(out[:, :-self.nbus+self.nslack])
-        pg = out2[:, :self.qg_start_yidx] * self.pmax + (1-out2[:, :self.qg_start_yidx]) * self.pmin
+        out2 = nn.Sigmoid()(out[:, :-self.nbus + self.nslack])
+        pg = out2[:, :self.qg_start_yidx] * self.pmax + (1 - out2[:, :self.qg_start_yidx]) * self.pmin
         qg = out2[:, self.qg_start_yidx:self.vm_start_yidx] * self.qmax + \
-            (1-out2[:, self.qg_start_yidx:self.vm_start_yidx]) * self.qmin
-        vm = out2[:, self.vm_start_yidx:] * self.vmax + (1- out2[:, self.vm_start_yidx:]) * self.vmin
+             (1 - out2[:, self.qg_start_yidx:self.vm_start_yidx]) * self.qmin
+        vm = out2[:, self.vm_start_yidx:] * self.vmax + (1 - out2[:, self.vm_start_yidx:]) * self.vmin
 
         va = torch.zeros(X.shape[0], self.nbus, device=self.device)
         va[:, self.nonslack_idxes] = out[:, self.va_start_yidx:]
@@ -1004,14 +1004,13 @@ class ACOPFProblem:
 
         # Re-scale real powers
         Y_partial[:, self.pg_pv_zidx] = Z[:, self.pg_pv_zidx] * self.pmax[1:] + \
-             (1-Z[:, self.pg_pv_zidx]) * self.pmin[1:]
-        
+                                        (1 - Z[:, self.pg_pv_zidx]) * self.pmin[1:]
+
         # Re-scale real parts of voltages
         Y_partial[:, self.vm_spv_zidx] = Z[:, self.vm_spv_zidx] * self.vmax[self.spv] + \
-            (1-Z[:, self.vm_spv_zidx]) * self.vmin[self.spv]
+                                         (1 - Z[:, self.vm_spv_zidx]) * self.vmin[self.spv]
 
         return PFFunction(self)(X, Y_partial)
-
 
     def opt_solve(self, X, solver_type='pypower', tol=1e-4):
         X_np = X.detach().cpu().numpy()
@@ -1019,8 +1018,8 @@ class ACOPFProblem:
         ppc = self.ppc
 
         # Set reduced voltage bounds if applicable
-        ppc['bus'][:,idx_bus.VMIN] = ppc['bus'][:,idx_bus.VMIN] + self.EPS_INTERIOR
-        ppc['bus'][:,idx_bus.VMAX] = ppc['bus'][:,idx_bus.VMAX] - self.EPS_INTERIOR
+        ppc['bus'][:, idx_bus.VMIN] = ppc['bus'][:, idx_bus.VMIN] + self.EPS_INTERIOR
+        ppc['bus'][:, idx_bus.VMAX] = ppc['bus'][:, idx_bus.VMAX] - self.EPS_INTERIOR
 
         # Solver options
         ppopt = ppoption.ppoption(OPF_ALG=560, VERBOSE=0, OPF_VIOLATION=tol)  # MIPS PDIPM
@@ -1043,7 +1042,7 @@ class ACOPFProblem:
             va = np.deg2rad(my_result['bus'][:, idx_bus.VA])
             Y.append(np.concatenate([pg, qg, vm, va]))
 
-        return np.array(Y), total_time, total_time/len(X_np)
+        return np.array(Y), total_time, total_time / len(X_np)
 
 
 def PFFunction(data, tol=1e-5, bsz=200, max_iters=50):
@@ -1053,35 +1052,36 @@ def PFFunction(data, tol=1e-5, bsz=200, max_iters=50):
 
             ## Step 1: Newton's method
             Y = torch.zeros(X.shape[0], data.ydim, device=DEVICE)
-            
+
             # known/estimated values (pg at pv buses, vm at all gens, va at slack bus)
-            Y[:, data.pg_start_yidx + data.pv_] = Z[:, data.pg_pv_zidx]    # pg at non-slack gens
-            Y[:, data.vm_start_yidx + data.spv] = Z[:, data.vm_spv_zidx]   # vm at gens
+            Y[:, data.pg_start_yidx + data.pv_] = Z[:, data.pg_pv_zidx]  # pg at non-slack gens
+            Y[:, data.vm_start_yidx + data.spv] = Z[:, data.vm_spv_zidx]  # vm at gens
             Y[:, data.va_start_yidx + data.slack] = torch.tensor(data.slack_va, device=DEVICE)  # va at slack bus
 
             # init guesses for remaining values
             Y[:, data.vm_start_yidx + data.pq] = torch.tensor(data.vm_init[data.pq], device=DEVICE)  # vm at load buses
-            Y[:, data.va_start_yidx + data.pv] = torch.tensor(data.va_init[data.pv], device=DEVICE)  # va at non-slack gens 
+            Y[:, data.va_start_yidx + data.pv] = torch.tensor(data.va_init[data.pv],
+                                                              device=DEVICE)  # va at non-slack gens
             Y[:, data.va_start_yidx + data.pq] = torch.tensor(data.va_init[data.pq], device=DEVICE)  # va at load buses
-            Y[:, data.qg_start_yidx:data.qg_start_yidx+data.ng] = 0    # qg at gens (not used in Newton upd)
-            Y[:, data.pg_start_yidx+data.slack_] = 0                   # pg at slack (not used in Newton upd)
+            Y[:, data.qg_start_yidx:data.qg_start_yidx + data.ng] = 0  # qg at gens (not used in Newton upd)
+            Y[:, data.pg_start_yidx + data.slack_] = 0  # pg at slack (not used in Newton upd)
 
             keep_constr = np.concatenate([
-                data.pflow_start_eqidx + data.pv,     # real power flow at non-slack gens
-                data.pflow_start_eqidx + data.pq,     # real power flow at load buses
-                data.qflow_start_eqidx + data.pq])    # reactive power flow at load buses
-            newton_guess_inds = np.concatenate([             
-                data.vm_start_yidx + data.pq,         # vm at load buses
-                data.va_start_yidx + data.pv,         # va at non-slack gens
-                data.va_start_yidx + data.pq])        # va at load buses
+                data.pflow_start_eqidx + data.pv,  # real power flow at non-slack gens
+                data.pflow_start_eqidx + data.pq,  # real power flow at load buses
+                data.qflow_start_eqidx + data.pq])  # reactive power flow at load buses
+            newton_guess_inds = np.concatenate([
+                data.vm_start_yidx + data.pq,  # vm at load buses
+                data.va_start_yidx + data.pv,  # va at non-slack gens
+                data.va_start_yidx + data.pq])  # va at load buses
 
             converged = torch.zeros(X.shape[0])
             jacs = []
             newton_jacs_inv = []
             for b in range(0, X.shape[0], bsz):
                 # print('batch: {}'.format(b))
-                X_b = X[b:b+bsz]
-                Y_b = Y[b:b+bsz]
+                X_b = X[b:b + bsz]
+                Y_b = Y[b:b + bsz]
 
                 for i in range(max_iters):
                     # print(i)
@@ -1094,10 +1094,9 @@ def PFFunction(data, tol=1e-5, bsz=200, max_iters=50):
                     if torch.norm(delta, dim=1).abs().max() < tol:
                         break
 
-                converged[b:b+bsz] = (delta.abs() < tol).all(dim=1)
+                converged[b:b + bsz] = (delta.abs() < tol).all(dim=1)
                 jacs.append(jac_full)
                 newton_jacs_inv.append(newton_jac_inv)
-
 
             ## Step 2: Solve for remaining variables
 
@@ -1110,8 +1109,8 @@ def PFFunction(data, tol=1e-5, bsz=200, max_iters=50):
 
             ctx.data = data
             ctx.save_for_backward(torch.cat(jacs), torch.cat(newton_jacs_inv),
-                torch.tensor(newton_guess_inds, device=DEVICE), 
-                torch.tensor(keep_constr, device=DEVICE))
+                                  torch.tensor(newton_guess_inds, device=DEVICE),
+                                  torch.tensor(keep_constr, device=DEVICE))
 
             return Y
 
@@ -1128,7 +1127,7 @@ def PFFunction(data, tol=1e-5, bsz=200, max_iters=50):
             last_vars = np.concatenate([
                 data.pg_start_yidx + data.slack_, np.arange(data.qg_start_yidx, data.qg_start_yidx + data.ng)])
             jac3 = jac[:, last_eqs, :]
-            dl_dvmva_3 = -jac3[:, :, data.vm_start_yidx:].transpose(1,2).bmm(
+            dl_dvmva_3 = -jac3[:, :, data.vm_start_yidx:].transpose(1, 2).bmm(
                 dl_dy[:, last_vars].unsqueeze(-1)).squeeze(-1)
 
             # gradient of pd at slack and qd at gens through step 3 outputs
@@ -1141,25 +1140,23 @@ def PFFunction(data, tol=1e-5, bsz=200, max_iters=50):
             dl_dx_3 = torch.zeros(dl_dy.shape[0], data.xdim, device=DEVICE)
             dl_dx_3[:, np.concatenate([data.slack, data.nbus + data.spv])] = dl_dpdqd_3
 
-
             ## Step 1
             dl_dy_total = dl_dy_3 + dl_dy  # Backward pass vector including result of last step
 
             # Use precomputed inverse jacobian
             jac2 = jac[:, keep_constr, :]
-            d_int = newton_jac_inv.transpose(1,2).bmm(
-                            dl_dy_total[:,newton_guess_inds].unsqueeze(-1)).squeeze(-1)
+            d_int = newton_jac_inv.transpose(1, 2).bmm(
+                dl_dy_total[:, newton_guess_inds].unsqueeze(-1)).squeeze(-1)
 
             dl_dz_2 = torch.zeros(dl_dy.shape[0], data.npv + data.ng, device=DEVICE)
             dl_dz_2[:, data.pg_pv_zidx] = -d_int[:, :data.npv]  # dl_dpg at pv buses
-            dl_dz_2[:, data.vm_spv_zidx] = -jac2[:, :, data.vm_start_yidx + data.spv].transpose(1,2).bmm(
+            dl_dz_2[:, data.vm_spv_zidx] = -jac2[:, :, data.vm_start_yidx + data.spv].transpose(1, 2).bmm(
                 d_int.unsqueeze(-1)).squeeze(-1)
 
             dl_dx_2 = torch.zeros(dl_dy.shape[0], data.xdim, device=DEVICE)
-            dl_dx_2[:, data.pv] = d_int[:, :data.npv]                       # dl_dpd at pv buses
-            dl_dx_2[:, data.pq] = d_int[:, data.npv:data.npv+len(data.pq)]  # dl_dpd at pq buses
-            dl_dx_2[:, data.nbus + data.pq] = d_int[:, -len(data.pq):]      # dl_dqd at pq buses
-
+            dl_dx_2[:, data.pv] = d_int[:, :data.npv]  # dl_dpd at pv buses
+            dl_dx_2[:, data.pq] = d_int[:, data.npv:data.npv + len(data.pq)]  # dl_dpd at pq buses
+            dl_dx_2[:, data.nbus + data.pq] = d_int[:, -len(data.pq):]  # dl_dqd at pq buses
 
             # Final quantities
             dl_dx_total = dl_dx_3 + dl_dx_2
@@ -1167,6 +1164,5 @@ def PFFunction(data, tol=1e-5, bsz=200, max_iters=50):
                 data.pg_start_yidx + data.pv_, data.vm_start_yidx + data.spv])]
 
             return dl_dx_total, dl_dz_total
-
 
     return PFFunctionFn.apply
